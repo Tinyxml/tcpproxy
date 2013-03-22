@@ -1,8 +1,3 @@
-/*
- *  tcpproxy.c
- *  Author: lvbingc <lvbingc@gmail.com>
- */
-
 #include<netdb.h>
 #include<stdio.h>
 #include<stdlib.h>
@@ -11,6 +6,7 @@
 #include<errno.h>
 #include<sys/socket.h>
 #include<sys/types.h>
+#include<signal.h>
 
 #define bool int
 #define TRUE 1
@@ -28,6 +24,7 @@ int server_loop();
 int handler_client(int connfd);
 int create_conn_server(char* remote_host, int remote_port);
 int redirect_data(int srcfd, int dstfd);
+void sigchld_handler(int signal);
 
 int main(int argc, char *argv[]) {
 	int opt;
@@ -79,7 +76,7 @@ int main(int argc, char *argv[]) {
 		printf("tcpproxy -l %d -h %s -p %d\n", local_port, remote_host,
 				remote_port);
 	}
-
+	signal(SIGCHLD, sigchld_handler); // prevent ended children from becoming zombies
 	if (create_server(local_port) == -1) {
 		printf("create server() error.Exiting...");
 		exit(-1);
@@ -87,7 +84,10 @@ int main(int argc, char *argv[]) {
 	server_loop();
 	return 0;
 }
-
+void sigchld_handler(int signal) {
+	while (waitpid(-1, NULL, WNOHANG) > 0)
+		;
+}
 int create_server(int local_port) {
 	listen_fd = socket(AF_INET, SOCK_STREAM, 0);
 	if (listen_fd == -1) {
